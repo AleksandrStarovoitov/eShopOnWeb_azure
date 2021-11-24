@@ -32,6 +32,12 @@
                         <a asp-area="" asp-page="/Index">
                             <img src="~/images/brand.png" alt="eShop On Web" />
                         </a>
+
+                        @{
+                            if (Context.Request.Headers.TryGetValue("X-SITE-DEPLOYMENT-ID", out var id)) {
+                                <p>X-SITE-DEPLOYMENT-ID: @id.FirstOrDefault("No") </p>
+                            }
+                        }
                     </section>
                     <partial name="_LoginPartial" />
                 </article>
