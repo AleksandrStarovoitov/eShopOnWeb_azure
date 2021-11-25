@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -70,20 +71,21 @@ public class OrderService : IOrderService
         var httpClient = new HttpClient();
         var content = JsonContent.Create(order);
         await httpClient.PostAsync(_configuration["DeliveryOrderProcessorUrl"], content);
+
         _logger.LogInformation("Sent to DeliveryOrderProcessor: {0}", content.ToString());
     }
 
     private async Task SendOrderMessageToReserver(Order order)
     {
-        var orderMessage = order.OrderItems.Select(x => new { ItemId = x.Id, Count = x.Units });
+        var orderMessages = order.OrderItems.Select(x => new { ItemId = x.Id, Count = x.Units });
 
         await using var client = new ServiceBusClient(_configuration["ServiceBusConnectionString"]);
         await using var sender = client.CreateSender("eshop-queue");
 
-        var messageContent = JsonSerializer.Serialize(orderMessage);
-        var message = new ServiceBusMessage(messageContent);
-        await sender.SendMessageAsync(message);
+        var messageContents = orderMessages.Select(x => JsonSerializer.Serialize(x));
+        var messages = messageContents.Select(x => new ServiceBusMessage(x));
+        await sender.SendMessagesAsync(messages);
 
-        _logger.LogInformation("Sent to service bus: {0}", messageContent);
+        _logger.LogInformation("Sent to service bus: {0}", String.Join(',', messageContents));
     }
 }
