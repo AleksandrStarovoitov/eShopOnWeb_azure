@@ -15,13 +15,13 @@ namespace AzureFunctions
         [FunctionName("DeliveryOrderProcessor")]
         public static IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
-            [CosmosDB("eshop-db", "eshop-container", ConnectionStringSetting = "CosmosDBConnection",
-            CreateIfNotExists = true)] out dynamic collector,
+            //[CosmosDB("eshop-db", "eshop-container", ConnectionStringSetting = "CosmosDBConnection",
+            //CreateIfNotExists = true)] out dynamic collector,
             ILogger log)
         {
             string json = req.ReadAsStringAsync().Result;
-            log.LogInformation(json);
-            collector = json;
+            log.LogWarning(json);
+            //collector = json;
 
             return new OkObjectResult("ok");
         }
