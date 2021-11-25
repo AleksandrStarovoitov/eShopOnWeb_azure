@@ -1,8 +1,10 @@
 ﻿using System.Linq;
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Ardalis.GuardClauses;
+using Azure.Messaging.ServiceBus;
 using Microsoft.eShopWeb.ApplicationCore.Entities;
 using Microsoft.eShopWeb.ApplicationCore.Entities.BasketAggregate;
 using Microsoft.eShopWeb.ApplicationCore.Entities.OrderAggregate;
@@ -59,9 +61,29 @@ public class OrderService : IOrderService
         var order = new Order(basket.BuyerId, shippingAddress, items);   
         await _orderRepository.AddAsync(order);
 
+        await SendOrderToProcessor(order);
+        await SendOrderMessageToReserver(order);
+    }
+
+    private async Task SendOrderToProcessor(Order order)
+    {
         var httpClient = new HttpClient();
         var content = JsonContent.Create(order);
         await httpClient.PostAsync(_configuration["DeliveryOrderProcessorUrl"], content);
         _logger.LogInformation("Sent to DeliveryOrderProcessor: {0}", content.ToString());
+    }
+
+    private async Task SendOrderMessageToReserver(Order order)
+    {
+        var orderMessage = order.OrderItems.Select(x => new { ItemId = x.Id, Count = x.Units });
+
+        await using var client = new ServiceBusClient(_configuration["ServiceBusConnectionString"]);
+        await using var sender = client.CreateSender("eshop-queue");
+
+        var messageContent = JsonSerializer.Serialize(orderMessage);
+        var message = new ServiceBusMessage(messageContent);
+        await sender.SendMessageAsync(message);
+
+        _logger.LogInformation("Sent to service bus: {0}", messageContent);
     }
 }
